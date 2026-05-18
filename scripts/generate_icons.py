@@ -1,6 +1,6 @@
 """TubeFilm 아이콘 생성기.
 
-무성영화(채플린 풍) 캐릭터 실루엣 — 보울러 모자 + 지팡이 + 살짝 차는 다리 포즈.
+버스터 키튼 풍 실루엣 — 평평한 포크파이 모자 + 보타이 + 앞으로 기울인 스트라이드 포즈.
 사용법: python3 scripts/generate_icons.py
 출력: icons/icon{16,48,128}.png
 """
@@ -15,16 +15,16 @@ from PIL import Image, ImageDraw
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons")
 SIZES = (16, 48, 128)
 
-BG = (242, 238, 230)
-BG_DARK = (215, 208, 195)
-FIGURE = (16, 14, 18)
-ACCENT = (200, 60, 70)
+BG = (248, 246, 238)
+BG_DARK = (210, 206, 196)
+FIGURE = (14, 12, 16)
+ACCENT = (190, 50, 55)
 
 
 def make_bg(size: int) -> Image.Image:
     img = Image.new("RGB", (size, size), BG)
     cx = cy = size / 2
-    max_r = size * 0.75
+    max_r = size * 0.78
     for y in range(size):
         for x in range(size):
             dx = (x - cx) / max_r
@@ -62,93 +62,147 @@ def thick_line(d: ImageDraw.ImageDraw, p1, p2, width, color=FIGURE) -> None:
     fcircle(d, p2[0], p2[1], width / 2, color)
 
 
-def draw_chaplin(d: ImageDraw.ImageDraw, S: int, detailed: bool) -> None:
-    cx = S * 0.50
-    base_y = S * 0.92
+def rotate_pt(p, center, angle_rad):
+    dx = p[0] - center[0]
+    dy = p[1] - center[1]
+    c = math.cos(angle_rad)
+    s = math.sin(angle_rad)
+    return (center[0] + dx * c - dy * s, center[1] + dx * s + dy * c)
 
+
+def draw_keaton(d: ImageDraw.ImageDraw, S: int, detailed: bool) -> None:
+    tilt = math.radians(-8)
+    pivot = (S * 0.50, S * 0.88)
+
+    base_y = S * 0.92
+    cx = S * 0.50
     head_r = S * 0.085
-    head_cx = cx - S * 0.02
-    head_cy = S * 0.30
-    fcircle(d, head_cx, head_cy, head_r)
+    head_cx = cx
+    head_cy = S * 0.31
+
+    head = (head_cx, head_cy)
+    head_rot = rotate_pt(head, pivot, tilt)
+    fcircle(d, head_rot[0], head_rot[1], head_r)
+
+    porkpie_brim_w = head_r * 2.55
+    porkpie_brim_h = head_r * 0.22
+    brim_center = rotate_pt(
+        (head_cx, head_cy - head_r * 0.92), pivot, tilt
+    )
+
+    crown_w = head_r * 1.6
+    crown_h = head_r * 0.65
+    crown_center = rotate_pt(
+        (head_cx, head_cy - head_r * 1.32), pivot, tilt
+    )
+
+    overlay_layer = Image.new("RGBA", (int(S), int(S)), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay_layer, "RGBA")
+
+    od.ellipse(
+        (head_cx - porkpie_brim_w, head_cy - head_r * 0.92 - porkpie_brim_h,
+         head_cx + porkpie_brim_w, head_cy - head_r * 0.92 + porkpie_brim_h),
+        fill=FIGURE + (255,),
+    )
+    od.rounded_rectangle(
+        (head_cx - crown_w, head_cy - head_r * 1.32 - crown_h / 2,
+         head_cx + crown_w, head_cy - head_r * 1.32 + crown_h / 2),
+        radius=int(head_r * 0.15),
+        fill=FIGURE + (255,),
+    )
+
+    rot_layer = overlay_layer.rotate(
+        math.degrees(-tilt), center=pivot, resample=Image.BICUBIC
+    )
+    base = Image.new("RGBA", rot_layer.size, (0, 0, 0, 0))
+    base.alpha_composite(rot_layer)
+    d._image.alpha_composite(base)
+
+    neck_y = head_rot[1] + head_r * 0.9
+    shoulder_w = S * 0.20
+    shoulder_y = neck_y + S * 0.018
+    waist_w = S * 0.16
+    waist_y = S * 0.62
+
+    body_pts = [
+        rotate_pt((cx - shoulder_w * 0.5, shoulder_y), pivot, tilt),
+        rotate_pt((cx - shoulder_w, shoulder_y + S * 0.03), pivot, tilt),
+        rotate_pt((cx - waist_w, waist_y), pivot, tilt),
+        rotate_pt((cx + waist_w, waist_y), pivot, tilt),
+        rotate_pt((cx + shoulder_w, shoulder_y + S * 0.03), pivot, tilt),
+        rotate_pt((cx + shoulder_w * 0.5, shoulder_y), pivot, tilt),
+    ]
+    fpoly(d, body_pts)
 
     if detailed:
-        mustache_w = head_r * 0.9
-        mustache_h = head_r * 0.18
-        fellipse(d, head_cx, head_cy + head_r * 0.25, mustache_w, mustache_h)
-
-    hat_brim_w = head_r * 2.2
-    hat_brim_h = head_r * 0.25
-    fellipse(d, head_cx, head_cy - head_r * 0.95, hat_brim_w, hat_brim_h)
-
-    hat_w = head_r * 1.55
-    hat_h = head_r * 1.1
-    hat_top_y = head_cy - head_r * 1.85
-    d.rounded_rectangle(
-        (head_cx - hat_w, hat_top_y, head_cx + hat_w, head_cy - head_r * 0.85),
-        radius=int(head_r * 0.5),
-        fill=FIGURE,
-    )
-
-    neck_y = head_cy + head_r * 0.9
-    shoulder_w = S * 0.22
-    shoulder_y = neck_y + S * 0.02
-    waist_w = S * 0.18
-    waist_y = S * 0.62
-    coat_pts = [
-        (cx - shoulder_w * 0.4, shoulder_y),
-        (cx - shoulder_w, shoulder_y + S * 0.04),
-        (cx - waist_w, waist_y),
-        (cx + waist_w, waist_y),
-        (cx + shoulder_w, shoulder_y + S * 0.04),
-        (cx + shoulder_w * 0.4, shoulder_y),
-    ]
-    fpoly(d, coat_pts)
-
-    fellipse(d, cx, shoulder_y + S * 0.005, shoulder_w * 0.45, S * 0.015, BG)
+        bow_cx = head_rot[0]
+        bow_cy = neck_y + S * 0.008
+        bow_w = S * 0.035
+        bow_h = S * 0.018
+        bow_l = [
+            (bow_cx - bow_w, bow_cy - bow_h),
+            (bow_cx, bow_cy),
+            (bow_cx - bow_w, bow_cy + bow_h),
+        ]
+        bow_r = [
+            (bow_cx + bow_w, bow_cy - bow_h),
+            (bow_cx, bow_cy),
+            (bow_cx + bow_w, bow_cy + bow_h),
+        ]
+        fpoly(d, bow_l, ACCENT)
+        fpoly(d, bow_r, ACCENT)
+        fcircle(d, bow_cx, bow_cy, S * 0.008, ACCENT)
 
     leg_top_y = waist_y - S * 0.005
-    leg_w = max(1, int(S * 0.055))
+    back_foot_x = cx - S * 0.15
+    front_foot_x = cx + S * 0.20
 
-    back_foot = (cx - S * 0.04, base_y)
     fpoly(
         d,
         [
-            (cx - S * 0.06, leg_top_y),
-            (cx + S * 0.02, leg_top_y),
-            (back_foot[0] + S * 0.03, base_y),
-            (back_foot[0] - S * 0.02, base_y),
+            rotate_pt((cx - S * 0.08, leg_top_y), pivot, tilt),
+            rotate_pt((cx - S * 0.005, leg_top_y), pivot, tilt),
+            rotate_pt((back_foot_x + S * 0.035, base_y), pivot, tilt),
+            rotate_pt((back_foot_x - S * 0.035, base_y), pivot, tilt),
         ],
     )
-
-    front_foot = (cx + S * 0.30, base_y - S * 0.02)
     fpoly(
         d,
         [
-            (cx - S * 0.01, leg_top_y),
-            (cx + S * 0.07, leg_top_y),
-            (front_foot[0] + S * 0.01, front_foot[1] + S * 0.01),
-            (front_foot[0] - S * 0.08, front_foot[1] + S * 0.01),
+            rotate_pt((cx + S * 0.005, leg_top_y), pivot, tilt),
+            rotate_pt((cx + S * 0.08, leg_top_y), pivot, tilt),
+            rotate_pt((front_foot_x + S * 0.04, base_y - S * 0.01), pivot, tilt),
+            rotate_pt((front_foot_x - S * 0.04, base_y - S * 0.01), pivot, tilt),
         ],
     )
 
-    shoe_h = S * 0.035
-    fellipse(d, back_foot[0], base_y, S * 0.07, shoe_h)
-    fellipse(d, front_foot[0] - S * 0.02, front_foot[1] + S * 0.005, S * 0.08, shoe_h)
+    shoe_h = S * 0.03
+    back_shoe = rotate_pt((back_foot_x, base_y), pivot, tilt)
+    front_shoe = rotate_pt((front_foot_x, base_y - S * 0.005), pivot, tilt)
+    fellipse(d, back_shoe[0] - S * 0.01, back_shoe[1], S * 0.075, shoe_h)
+    fellipse(d, front_shoe[0] + S * 0.005, front_shoe[1], S * 0.085, shoe_h)
 
-    arm_w = max(1, int(S * 0.05))
-    near_shoulder = (cx - shoulder_w * 0.75, shoulder_y + S * 0.03)
-    near_hand = (cx - S * 0.30, S * 0.50)
-    thick_line(d, near_shoulder, near_hand, arm_w)
+    arm_w = max(1, int(S * 0.052))
+    back_shoulder = rotate_pt(
+        (cx - shoulder_w * 0.78, shoulder_y + S * 0.02), pivot, tilt
+    )
+    back_hand = rotate_pt((cx - S * 0.27, S * 0.66), pivot, tilt)
+    thick_line(d, back_shoulder, back_hand, arm_w)
 
-    far_shoulder = (cx + shoulder_w * 0.75, shoulder_y + S * 0.03)
-    far_hand = (cx + S * 0.32, S * 0.48)
-    thick_line(d, far_shoulder, far_hand, arm_w)
+    front_shoulder = rotate_pt(
+        (cx + shoulder_w * 0.78, shoulder_y + S * 0.02), pivot, tilt
+    )
+    front_hand = rotate_pt((cx + S * 0.30, S * 0.42), pivot, tilt)
+    thick_line(d, front_shoulder, front_hand, arm_w)
 
-    cane_top = (near_hand[0] - S * 0.05, near_hand[1] - S * 0.04)
-    cane_bottom = (near_hand[0] + S * 0.12, base_y - S * 0.01)
-    cane_w = max(1, int(S * 0.025))
-    thick_line(d, cane_top, cane_bottom, cane_w)
-    fcircle(d, cane_top[0], cane_top[1], cane_w * 1.4)
+
+class CompositingDraw:
+    def __init__(self, image: Image.Image):
+        self._image = image
+        self._draw = ImageDraw.Draw(image, "RGBA")
+
+    def __getattr__(self, name):
+        return getattr(self._draw, name)
 
 
 def make_icon(size: int) -> Image.Image:
@@ -156,19 +210,19 @@ def make_icon(size: int) -> Image.Image:
     detailed = work_size >= 96
 
     bg = make_bg(work_size).convert("RGBA")
-    overlay = Image.new("RGBA", (work_size, work_size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(overlay, "RGBA")
-    draw_chaplin(d, work_size, detailed)
+    figure_layer = Image.new("RGBA", (work_size, work_size), (0, 0, 0, 0))
+    cd = CompositingDraw(figure_layer)
+    draw_keaton(cd, work_size, detailed)
 
     spot_overlay = Image.new("L", (work_size, work_size), 0)
     sd = ImageDraw.Draw(spot_overlay)
     sd.ellipse(
-        (work_size * 0.12, work_size * 0.18, work_size * 0.88, work_size * 0.94),
-        fill=22,
+        (work_size * 0.08, work_size * 0.10, work_size * 0.92, work_size * 0.90),
+        fill=14,
     )
     bg.paste(Image.new("RGB", bg.size, ACCENT), (0, 0), spot_overlay)
 
-    composed = Image.alpha_composite(bg, overlay)
+    composed = Image.alpha_composite(bg, figure_layer)
 
     radius = int(work_size * 0.18)
     mask = rounded_mask(work_size, radius)
