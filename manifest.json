@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "TubeFilm",
+  "version": "0.1.0",
+  "description": "Apply cinematic film filters (NewJeans digicam, film noir, VHS, sepia, etc.) to YouTube videos.",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*.youtube.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": [
+        "content/presets.js",
+        "content/filter.js",
+        "content/panel.js",
+        "content/content.js"
+      ],
+      "css": ["content/styles.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

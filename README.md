@@ -1,11 +1,43 @@
-# tubefilm
+# TubeFilm
 
-A repository for tubefilm.
+YouTube 영상에 영화/필름 감성 필터를 입히는 Chrome 확장 (Manifest V3).
 
-## Overview
+## 프리셋
 
-This project is currently in its initial setup phase. More details will be added as development progresses.
+- **뉴진스 디지캠** — Y2K 디지털 캠코더 톤
+- **민희진 필름** — 소프트 · 들뜬 블랙 · 빛샘
+- **오즈의 마법사** — 클래식 세피아 · 비네트
+- **야인시대** — 70년대 한국 사극 톤
+- **필름 누아르** — 흑백 · 강콘트라스트
+- **80년대 VHS** — 비디오테이프 · 스캔라인
 
-## License
+각 프리셋마다 슬라이더 3종으로 강도 조절.
 
-See [LICENSE](LICENSE) for details.
+## 개발자 모드 설치 (테스트용)
+
+1. Chrome 주소창에 `chrome://extensions` 입력
+2. 우측 상단 **개발자 모드** 토글 ON
+3. **압축해제된 확장 프로그램을 로드합니다** 클릭
+4. 이 저장소의 `tubefilm/` 디렉토리 선택
+5. YouTube 영상 페이지로 이동하면 우측 상단에 패널 표시
+
+## 구조
+
+```
+tubefilm/
+├── manifest.json
+└── content/
+    ├── presets.js   # 6개 프리셋 정의
+    ├── filter.js    # CSS filter + 오버레이 적용 로직 (canvas 그레인 생성)
+    ├── panel.js     # 플로팅 패널 UI
+    ├── content.js   # 진입점 (저장소, 비디오 감시, 콜백)
+    └── styles.css   # 패널 + 오버레이 스타일
+```
+
+## 상태
+
+Phase 1 (MVP) — 6 프리셋, 슬라이더, 플로팅 패널, chrome.storage 동기화 동작.
+
+Phase 2 (예정) — 풀스크린 / 시어터 모드 / 미니 플레이어 / PiP 엣지 케이스.
+
+Phase 3 (예정) — 아이콘, 팝업, 스토어 자산.
