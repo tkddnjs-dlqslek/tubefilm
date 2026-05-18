@@ -2,6 +2,8 @@
   const TF = (window.__TubeFilm = window.__TubeFilm || {});
 
   const PANEL_ID = 'tubefilm-panel';
+  const TOAST_ID = 'tubefilm-toast';
+  const HINT_ID = 'tubefilm-first-hint';
 
   function el(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
@@ -118,10 +120,22 @@
         body.appendChild(el('div', { class: 'tubefilm-hint' }, ['프리셋을 선택하세요']));
       }
 
+      const adRow = el('label', { class: 'tubefilm-check-row' }, [
+        el('input', {
+          type: 'checkbox',
+          class: 'tubefilm-check',
+          ...(state.adFilterOff ? { checked: 'checked' } : {}),
+          onchange: (e) => callbacks.onToggleAdFilter(!!e.target.checked)
+        }),
+        el('span', {}, ['광고에는 필터 끄기'])
+      ]);
+      body.appendChild(adRow);
+
       panel.appendChild(body);
     }
 
-    document.body.appendChild(panel);
+    const host = TF._panelHost && document.contains(TF._panelHost) ? TF._panelHost : document.body;
+    host.appendChild(panel);
 
     if (state.position && state.position.left && state.position.top) {
       panel.style.left = state.position.left;
@@ -131,7 +145,89 @@
     }
 
     makeDraggable(panel, header);
+
+    if (!state.collapsed && !state.activePreset && !state.hintDismissed) {
+      TF.showFirstHint(callbacks);
+    } else {
+      TF.dismissFirstHint(false);
+    }
+
     return panel;
+  };
+
+  TF.showFirstHint = function (callbacks) {
+    if (document.getElementById(HINT_ID)) return;
+    const panel = document.getElementById(PANEL_ID);
+    if (!panel) return;
+    const body = panel.querySelector('.tubefilm-body');
+    if (!body) return;
+    const hint = el('div', { id: HINT_ID, class: 'tubefilm-first-hint' }, [
+      el('span', {}, ['처음 사용 — 프리셋을 골라 슬라이더로 강도 조절']),
+      el('button', {
+        class: 'tubefilm-hint-close',
+        title: '닫기',
+        onclick: () => {
+          if (callbacks && callbacks.onDismissHint) callbacks.onDismissHint();
+          TF.dismissFirstHint(false);
+        }
+      }, ['×'])
+    ]);
+    body.insertBefore(hint, body.firstChild);
+  };
+
+  TF.dismissFirstHint = function (persist) {
+    const hint = document.getElementById(HINT_ID);
+    if (hint) hint.remove();
+  };
+
+  TF.showToast = function (message, duration = 3000) {
+    let toast = document.getElementById(TOAST_ID);
+    if (toast) toast.remove();
+    toast = el('div', { id: TOAST_ID, class: 'tubefilm-toast' }, [message]);
+    const host = TF._panelHost && document.contains(TF._panelHost) ? TF._panelHost : document.body;
+    host.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('tubefilm-toast-show'));
+    setTimeout(() => {
+      if (!toast.parentElement) return;
+      toast.classList.remove('tubefilm-toast-show');
+      setTimeout(() => toast.remove(), 250);
+    }, duration);
+  };
+
+  TF.clampPanel = function () {
+    const panel = document.getElementById(PANEL_ID);
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    const maxLeft = window.innerWidth - Math.min(rect.width, 80);
+    const maxTop = window.innerHeight - 40;
+    let needsClamp = false;
+    let left = rect.left;
+    let top = rect.top;
+    if (left > maxLeft) { left = Math.max(0, maxLeft - 16); needsClamp = true; }
+    if (left < 0) { left = 0; needsClamp = true; }
+    if (top > maxTop) { top = Math.max(0, maxTop - 16); needsClamp = true; }
+    if (top < 0) { top = 0; needsClamp = true; }
+    if (needsClamp) {
+      panel.style.left = left + 'px';
+      panel.style.top = top + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      TF.savePanelPosition({ left: panel.style.left, top: panel.style.top });
+    }
+  };
+
+  TF.setPanelHost = function (host) {
+    TF._panelHost = host || null;
+    const panel = document.getElementById(PANEL_ID);
+    if (panel) {
+      const target = host && document.contains(host) ? host : document.body;
+      if (panel.parentElement !== target) target.appendChild(panel);
+    }
+    const toast = document.getElementById(TOAST_ID);
+    if (toast) {
+      const target = host && document.contains(host) ? host : document.body;
+      if (toast.parentElement !== target) target.appendChild(toast);
+    }
   };
 
   TF.unmountPanel = function () {

@@ -4,9 +4,10 @@
   const VIDEO_CLASS = 'tubefilm-video';
   const OVERLAY_CLASS = 'tubefilm-overlay';
   const LAYERS = ['grain', 'scanlines', 'vignette', 'lightleak'];
-  let noiseDataUrl = null;
+  const noiseCache = {};
+  let currentNoiseSize = 128;
 
-  function generateNoise(size = 256) {
+  function generateNoise(size) {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -22,9 +23,14 @@
     return canvas.toDataURL('image/png');
   }
 
-  function getNoise() {
-    if (!noiseDataUrl) noiseDataUrl = generateNoise(256);
-    return noiseDataUrl;
+  function pickNoiseSize(video) {
+    const h = video && video.videoHeight ? video.videoHeight : 720;
+    return h >= 1080 ? 256 : 128;
+  }
+
+  function getNoise(size) {
+    if (!noiseCache[size]) noiseCache[size] = generateNoise(size);
+    return noiseCache[size];
   }
 
   function lerp(a, b, t) { return a + (b - a) * t; }
@@ -74,20 +80,36 @@
     };
   }
 
+  function cleanupStaleOverlays(video) {
+    const live = video.parentElement;
+    document.querySelectorAll(`.${OVERLAY_CLASS}`).forEach((node) => {
+      if (!live || node.parentElement !== live) node.remove();
+    });
+  }
+
   function ensureOverlay(video) {
     const parent = video.parentElement;
     if (!parent) return null;
+    cleanupStaleOverlays(video);
+    const desiredSize = pickNoiseSize(video);
     let overlay = parent.querySelector(`:scope > .${OVERLAY_CLASS}`);
+    if (overlay && overlay.dataset.noiseSize !== String(desiredSize)) {
+      overlay.remove();
+      overlay = null;
+    }
     if (!overlay) {
+      currentNoiseSize = desiredSize;
       const cs = getComputedStyle(parent);
       if (cs.position === 'static') parent.style.position = 'relative';
       overlay = document.createElement('div');
       overlay.className = OVERLAY_CLASS;
+      overlay.dataset.noiseSize = String(desiredSize);
       LAYERS.forEach((name) => {
         const layer = document.createElement('div');
         layer.className = `tubefilm-layer tubefilm-${name}`;
         if (name === 'grain') {
-          layer.style.backgroundImage = `url(${getNoise()})`;
+          layer.style.backgroundImage = `url(${getNoise(desiredSize)})`;
+          layer.style.backgroundSize = `${desiredSize}px ${desiredSize}px`;
         } else if (name === 'scanlines') {
           layer.style.backgroundImage =
             'repeating-linear-gradient(0deg, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 1px, transparent 1px, transparent 3px)';
@@ -137,6 +159,16 @@
   };
 
   TF.regenerateNoise = function () {
-    noiseDataUrl = generateNoise(256);
+    delete noiseCache[currentNoiseSize];
+    getNoise(currentNoiseSize);
+  };
+
+  TF.reattachOverlay = function (video) {
+    if (!video) return;
+    const parent = video.parentElement;
+    if (!parent) return;
+    document.querySelectorAll(`.${OVERLAY_CLASS}`).forEach((node) => {
+      if (node.parentElement !== parent) node.remove();
+    });
   };
 })();
